@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from bte import DataStore, build_grid, run_fast, run_rigorous
+from hindsight import DataStore, build_grid, run_fast, run_rigorous
 from strategies.classic import EqualWeight, MACross
 
 

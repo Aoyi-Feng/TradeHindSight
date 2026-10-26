@@ -15,7 +15,7 @@ yaml = ["pyyaml>=6"]
 dev = ["pytest>=8"]
 
 [project.scripts]
-bte = "bte.cli:main"
+hindsight = "hindsight.cli:main"
 
 [tool.setuptools]
-packages = ["bte", "strategies"]
+packages = ["hindsight", "strategies"]

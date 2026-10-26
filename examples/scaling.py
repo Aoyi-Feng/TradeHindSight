@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import time
 
-from bte import build_grid, run_fast, run_rigorous
+from hindsight import build_grid, run_fast, run_rigorous
 from examples.bench import make
 from examples.demo import Alphabet
 

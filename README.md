@@ -1,7 +1,8 @@
-# backtest-engine
+# Hindsight
 
-A backtest engine that owns data access, the clock, the ledger and the cost model — and
-nothing else. Strategies are injected; the engine never contains a signal, a factor or a
+*A backtest engine that is not allowed to see the future.*
+
+It owns data access, the clock, the ledger and the cost model — and nothing else. Strategies are injected; the engine never contains a signal, a factor or a
 defence rule.
 
 The design target is narrow: **a number you can defend**. Every place where a future price
@@ -42,7 +43,7 @@ believe it. The gates below exist precisely so the two can never disagree.
 ## Layout
 
 ```
-bte/
+hindsight/
   contract.py  Strategy protocol, TargetPortfolio (long-only, weights <= 1)
   data.py      DataStore (dates x symbols matrix), PITView (the look-ahead guard)
   clock.py     decision grids: month_end / week_end / daily / every_k_bars
@@ -62,7 +63,7 @@ data/sample/   4 synthetic symbols x 520 days (~40 KB) so a clone runs out of th
 ## Quick start
 
 ```bash
-PYTHONPATH=. python -m bte.cli \
+PYTHONPATH=. python -m hindsight.cli \
     --strategy strategies.buyhold:BuyHold \
     --synthetic 120,2000 --mode fast
 ```
@@ -78,14 +79,14 @@ MaxDD       -19.58%
 With real data (a pickle or CSV of closes, one column per symbol):
 
 ```bash
-PYTHONPATH=. python -m bte.cli --config config.yaml \
+PYTHONPATH=. python -m hindsight.cli --config config.yaml \
     --strategy strategies.buyhold:BuyHold --data prices.pkl --mode rigorous
 ```
 
 From Python:
 
 ```python
-from bte import DataStore, build_grid, run_rigorous
+from hindsight import DataStore, build_grid, run_rigorous
 
 store = DataStore(close)                       # {symbol: Series}
 grid = build_grid(store.calendar, "month_end")
@@ -120,7 +121,7 @@ decision:
 ## Saving a run
 
 ```bash
-python -m bte.cli --config config.yaml --strategy strategies.classic:MACross \
+python -m hindsight.cli --config config.yaml --strategy strategies.classic:MACross \
        --data prices.csv --save runs --label "first try"
 ```
 
@@ -173,7 +174,7 @@ ma_cross     CAGR  -5.07%  Sharpe -0.76  MaxDD -11.03%  final 9,051  fast-vs-rig
 ## Writing a strategy
 
 ```python
-from bte.contract import DecisionContext, Strategy, TargetPortfolio
+from hindsight.contract import DecisionContext, Strategy, TargetPortfolio
 
 class EqualWeight(Strategy):
     stateful = False          # True -> fast mode refuses to run it
@@ -192,9 +193,8 @@ class EqualWeight(Strategy):
 Returning an over-weight or a negative raises immediately rather than silently changing the
 portfolio downstream.
 
-Private strategies live in `strategies/` on your machine and are excluded by `.gitignore`;
-what ships here is only textbook material (`BuyHold`, `EqualWeight`, a 20/60 crossover, a
-random picker) — nothing tuned, nothing used in production.
+Written strategies live in `strategies/`. What ships here is textbook material only
+(`BuyHold`, `EqualWeight`, a 20/60 crossover, a random picker).
 
 ## Configuration
 
@@ -302,7 +302,4 @@ before any conclusion is quoted:
 - **Fast mode is state-free only.** It refuses `stateful=True` rather than return a number
   that quietly ignores cash constraints, minimum lots or taxes.
 
----
-
-## License
 

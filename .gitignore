@@ -10,13 +10,11 @@ data/*
 !data/sample/
 !data/sample/*.csv
 
-# private strategies: local only, never committed
+# a strategy file dropped in here is local until you decide to publish it
 strategies/*.py
 !strategies/__init__.py
 !strategies/classic.py
 !strategies/buyhold.py
-examples/reconcile_*.py
 
 # run archives
 runs/
-scripts/replicate_reference.py

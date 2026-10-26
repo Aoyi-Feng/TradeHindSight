@@ -1,7 +1,7 @@
 """Minimal example strategy: hold one symbol, cash otherwise."""
 from __future__ import annotations
 
-from bte.contract import DecisionContext, Strategy, TargetPortfolio
+from hindsight.contract import DecisionContext, Strategy, TargetPortfolio
 
 
 class BuyHold(Strategy):

@@ -5,7 +5,7 @@ Picks the first k symbols in alphabetical order. No signal, no parameters worth 
 
 from __future__ import annotations
 
-from bte.contract import DecisionContext, Strategy, TargetPortfolio
+from hindsight.contract import DecisionContext, Strategy, TargetPortfolio
 
 
 class Alphabet(Strategy):

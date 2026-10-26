@@ -1,7 +1,7 @@
 """Command line entry point.
 
-    python -m bte.cli --config config.yaml --strategy strategies.buyhold:BuyHold
-    python -m bte.cli --strategy strategies.buyhold:BuyHold --synthetic 200,3000 --mode fast
+    python -m hindsight.cli --config config.yaml --strategy strategies.buyhold:BuyHold
+    python -m hindsight.cli --strategy strategies.buyhold:BuyHold --synthetic 200,3000 --mode fast
 """
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ def load_data(args) -> dict[str, pd.Series]:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="bte")
+    ap = argparse.ArgumentParser(prog="hindsight")
     ap.add_argument("--config", help="yaml/json run configuration")
     ap.add_argument("--strategy", required=True, help="module:Class")
     ap.add_argument("--data", help="pkl/csv of close prices, one column per symbol")

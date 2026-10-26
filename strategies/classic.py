@@ -4,7 +4,7 @@ These exist so the repository can be cloned and exercised end to end.
 """
 from __future__ import annotations
 
-from bte.contract import DecisionContext, Strategy, TargetPortfolio
+from hindsight.contract import DecisionContext, Strategy, TargetPortfolio
 
 
 class EqualWeight(Strategy):
