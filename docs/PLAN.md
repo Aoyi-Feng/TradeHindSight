@@ -18,7 +18,7 @@ makes a future read impossible rather than merely discouraged.
 | **P1** | fast mode, process pool, equivalence gate | fast reproduces rigorous to ≤1e-9 relative | **done** |
 | **P2** | config layer: cost modes, FX, CLI | four cost modes and FX conversion verified | **done (costs, FX)** |
 | **P2b** | corporate actions: splits, dividends, delisting | three split cases reconcile by hand | **open** |
-| **P3** | reconcile against the audited research numbers using the private strategy | matches the audited CAGR / Sharpe / MaxDD | **reconciled: 0.99998 monthly correlation, max monthly gap 0.30pp (cost convention)** |
+| **P3** | reconcile a reference strategy against the published numbers | matches the audited CAGR / Sharpe / MaxDD | **reconciled: 0.99998 monthly correlation, max monthly gap 0.30pp (cost convention)** |
 | **P4** | gates in CI on every commit | a failing gate blocks the commit | **open** |
 
 ## What is done
@@ -56,11 +56,11 @@ makes a future read impossible rather than merely discouraged.
 - **Delisting** — a dead symbol keeps its last price forever.
 - **Point-in-time universe** — the engine takes whatever universe the strategy filters; index
   membership history is not supplied.
-- **Reconciliation** — the private strategy has not yet been re-run through this engine.
+- **Reconciliation** — a reference strategy has not yet been re-run through this engine.
   Until it reproduces the audited figures, one of the two engines is still wrong.
 
 ## Next step
 
-**P3 — reconcile.** Run the private strategy against real data through this engine and
+**P3 — reconcile.** Run a reference strategy against real data through this engine and
 compare with the audited figures. Everything else (P2b, P4) is polish by comparison: this is the step that
 proves the engine.
