@@ -64,6 +64,14 @@ class PITView:
         vals = self._store.close_arr[start:self._row + 1, col]
         return pd.Series(vals, index=self._store.calendar[start:self._row + 1])
 
+    def history_volume(self, symbol: str, n: Optional[int] = None) -> pd.Series:
+        col = self._store.col_of(symbol)
+        if col is None:
+            return pd.Series(dtype=float)
+        start = 0 if n is None else max(0, self._row + 1 - n)
+        vals = self._store.vol_arr[start:self._row + 1, col]
+        return pd.Series(vals, index=self._store.calendar[start:self._row + 1])
+
     def price(self, symbol: str, ts=None) -> float:
         row = self._row if ts is None else self._row_of(ts)
         col = self._store.col_of(symbol)
