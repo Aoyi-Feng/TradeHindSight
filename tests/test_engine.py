@@ -111,6 +111,21 @@ def test_live_decision_cannot_see_the_future():
         assert abs(full["weights"][k] - part["weights"][k]) < 1e-12
     return {"names": len(full["weights"]), "as_of": str(full["as_of"].date())}
 
+def test_intraday_timestamps_do_not_lose_the_session():
+    """A date-only request must land on that session's bar, not on the previous one."""
+    import numpy as np
+    from tradehindsight.live import latest_decision, resolve_bar
+    from strategies.classic import EqualWeight
+
+    idx = pd.bdate_range("2021-01-04", periods=40) + pd.Timedelta(hours=9, minutes=30)
+    close = {"AAA": pd.Series(100 + np.arange(40, dtype=float), index=idx)}
+    st = DataStore(close)
+    assert resolve_bar(st, "2021-02-26") == idx[39]
+    assert resolve_bar(st, None) == idx[39]
+    a = latest_decision(st, EqualWeight(), at="2021-02-26")
+    b = latest_decision(st, EqualWeight(), at=idx[39])
+    assert a["as_of"] == b["as_of"]
+
 
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):

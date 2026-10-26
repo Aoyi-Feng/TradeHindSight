@@ -19,6 +19,26 @@ from .clock import build_grid
 from .contract import DecisionContext, Strategy
 
 
+def resolve_bar(store, at) -> pd.Timestamp:
+    """Map a requested date onto the last bar at or before the end of that day.
+
+    A date-only input means "that session's close". Taking midnight literally drops the
+    session itself (a bar stamped 09:30 is greater than midnight), which silently shifts
+    every window one day back — the difference between a $10B filter admitting 437 names
+    and 443 of them.
+    """
+    if at is None:
+        return pd.Timestamp(store.calendar[-1])
+    ts = pd.Timestamp(at)
+    if ts in store.calendar:
+        return ts
+    eod = ts.normalize() + pd.Timedelta(days=1) - pd.Timedelta(microseconds=1)
+    pos = store.calendar.searchsorted(eod, side="right") - 1
+    if pos < 0:
+        raise ValueError(f"no bar at or before {ts.date()} in the data")
+    return pd.Timestamp(store.calendar[pos])
+
+
 def latest_date(store) -> pd.Timestamp:
     """The newest date for which the store has a price."""
     return pd.Timestamp(store.calendar[-1])
@@ -52,9 +72,7 @@ def latest_decision(
     marks: int = 24,
 ) -> dict:
     """Run one decision at ``at`` (default: the newest date in the data)."""
-    t = pd.Timestamp(at) if at is not None else latest_date(store)
-    if t not in store.calendar:
-        raise ValueError(f"{t.date()} is not a trading date in the data")
+    t = resolve_bar(store, at)
 
     grid = build_grid(store.calendar, frequency)
     recent = [d for d in grid if d <= t][-marks:]
