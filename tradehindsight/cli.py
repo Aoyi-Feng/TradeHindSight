@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -69,6 +70,12 @@ def main(argv=None) -> int:
                     help="write this run (manifest, equity, returns, weights, trades) to DIR")
     ap.add_argument("--label", default="", help="free-text label stored in the manifest")
     ap.add_argument("--json", action="store_true", help="print the config and results as json")
+    ap.add_argument("--now", action="store_true",
+                    help="do not backtest: run one decision at the newest date in the data")
+    ap.add_argument("--at", help="with --now: the date to decide at (YYYY-MM-DD)")
+    ap.add_argument("--holdings", help='with --now: current weights, e.g. {"AAA":0.3,"BBB":0.3}')
+    ap.add_argument("--nav", type=float, default=1.0, help="with --now: NAV for order sizes")
+    ap.add_argument("--top", type=int, default=10, help="with --now: ranking rows to print")
     args = ap.parse_args(argv)
 
     cfg = RunConfig.from_file(args.config) if args.config else RunConfig()
@@ -86,6 +93,18 @@ def main(argv=None) -> int:
                       else int(cfg.decision_freq))
     strat = load_strategy(args.strategy)
 
+    if args.now:
+        from .live import format_decision, latest_decision
+        held = json.loads(args.holdings) if args.holdings else {}
+        dec = latest_decision(store, strat, at=args.at, holdings=held, nav=args.nav,
+                              frequency=cfg.decision_freq)
+        if args.json:
+            print(json.dumps({k: (str(v) if isinstance(v, pd.Timestamp) else v)
+                              for k, v in dec.items()}, default=str, indent=2))
+        else:
+            print(format_decision(dec, top=args.top))
+        return 0
+
     runner = run_fast if cfg.mode == "fast" else run_rigorous
     kw = {"cfg": cfg, "initial_cash": cfg.initial_cash}
     if cfg.mode == "fast":
@@ -94,7 +113,6 @@ def main(argv=None) -> int:
     s = res.stats()
 
     if args.json:
-        import json
         print(json.dumps({"config": cfg.describe(), "stats": s,
                           "cycles": len(res.equity),
                           "final": float(res.equity.iloc[-1])}, indent=2))

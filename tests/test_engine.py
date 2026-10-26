@@ -90,6 +90,27 @@ def test_cash_and_costs_reconcile():
     assert drift <= 1e-9, f"first cycle gained {drift} before any price move"
     assert res.costs.sum() > 0
 
+def test_live_decision_cannot_see_the_future():
+    """A live decision at t must equal one taken with the store truncated at t."""
+    from tradehindsight.live import latest_decision
+    from strategies.classic import MACross
+
+    store = synthetic()
+    grid = build_grid(store.calendar, "month_end")
+    t = grid[-3]
+
+    full = latest_decision(store, MACross(), at=t, nav=1.0)
+    cut = store.sliced(t) if hasattr(store, "sliced") else None
+    if cut is None:
+        close = {s: store.series(s) for s in store.symbols}
+        cut = DataStore({s: v[v.index <= t] for s, v in close.items()})
+    part = latest_decision(cut, MACross(), at=t, nav=1.0)
+
+    assert full["weights"].keys() == part["weights"].keys(), (full["weights"], part["weights"])
+    for k in full["weights"]:
+        assert abs(full["weights"][k] - part["weights"][k]) < 1e-12
+    return {"names": len(full["weights"]), "as_of": str(full["as_of"].date())}
+
 
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):

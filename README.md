@@ -159,6 +159,54 @@ python examples/run_sample.py        # must print fast-vs-rigorous 0.0e+00
 
 MIT — see [LICENSE](LICENSE). Use it, fork it, ship it; no warranty.
 
+## Ask it what it would do right now
+
+`--now` skips the backtest and runs a single decision at the newest bar in the data — same
+`PITView`, same contract, so the strategy cannot behave differently than it does in a run.
+If the strategy implements `explain(ctx)`, the ranking behind the decision is printed too.
+
+```bash
+python -m tradehindsight.cli --strategy strategies.classic:MACross \
+       --data data/sample/prices_sample.csv --now --top 4 \
+       --holdings '{"AAA":0.3}' --nav 10000
+```
+
+```
+strategy     ma_cross
+as of        2022-12-30 (Friday)
+data         newest bar is the decision bar
+positions    1   cash 0.0%
+  BBB      100.00%   last 90.88
+ranking      4 scored
+    1.*BBB        0.0022
+    2. DDD       -0.0023
+    3. AAA       -0.0131
+    4. CCC       -0.0252
+orders
+  SELL AAA       30.0% ->   0.0%   -3,000
+  BUY  BBB        0.0% -> 100.0%  +10,000
+```
+
+`*` marks a name already held. In the library:
+
+```python
+from tradehindsight.live import latest_decision, format_decision
+dec = latest_decision(store, strategy, holdings={"AAA": 0.3}, nav=10_000)
+print(format_decision(dec, top=20))
+dec["ranking"]      # [(symbol, score), ...] newest first, best first
+dec["orders"]       # what to send to reach the target
+```
+
+A strategy exposes its ranking by adding one method:
+
+```python
+def explain(self, ctx):
+    return {sym: self.score(sym) for sym in ctx.universe}   # higher is better
+```
+
+`--now --at 2026-09-30` asks the same question about a past date, which is how you check a
+decision the engine already made.
+
 ## Run it on the sample data
 
 ```bash

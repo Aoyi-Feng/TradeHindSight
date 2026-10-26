@@ -110,6 +110,22 @@ python -m tradehindsight.cli --config config.yaml --strategy path/to/file.py:MyS
 
 ---
 
+## 4b. One decision, no backtest
+
+`--now` answers "what would it do today" without simulating anything: it takes the newest bar
+in the data, builds the same `PITView`, and calls `decide` once.
+
+```bash
+python -m tradehindsight.cli --strategy mod:Cls --data prices.csv --now --holdings '{"AAPL":0.3}'
+```
+
+In code: `tradehindsight.live.latest_decision(store, strategy, holdings=..., nav=...)` returns
+`as_of`, `weights`, `orders`, `cash_weight`, and `ranking` when the strategy defines
+`explain(ctx)` (returning `{symbol: score}`, higher = better). `format_decision(dec)` renders it.
+
+Two things this path is good for: a sanity check that the live choice matches the last
+backtested one, and showing *why* — the ranking, not just the names.
+
 ## 5. Clock and execution semantics (the part people get wrong)
 
 **`t` is the decision mark.** Everything the strategy may see is `≤ t`; the fill happens at `t`

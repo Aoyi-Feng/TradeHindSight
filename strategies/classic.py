@@ -33,6 +33,16 @@ class MACross(Strategy):
         self.fast, self.slow, self.k = fast, slow, k
         self.warmup = slow
 
+    def explain(self, ctx: DecisionContext):
+        """Score every name by fast/slow deviation — the ranking behind the picks."""
+        out = {}
+        for s in ctx.universe:
+            h = ctx.view.history(s, n=self.slow)
+            if len(h) < self.slow:
+                continue
+            out[s] = float(h.iloc[-self.fast:].mean() / h.mean() - 1.0)
+        return out
+
     def decide(self, ctx: DecisionContext) -> TargetPortfolio:
         picks = []
         for s in ctx.universe:
