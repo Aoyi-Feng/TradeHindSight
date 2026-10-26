@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 
-COST_MODES = ("bps_per_side", "bps_per_turnover", "flat_per_trade", "spread")
+COST_MODES = ("bps_per_side", "bps_per_turnover", "flat_per_trade", "spread",
+              "per_name_change")
 
 
 @dataclass
@@ -117,6 +118,9 @@ class RunConfig:
             return traded_notional * self.spread_bps / 2 / 1e4
         if m == "flat_per_trade":
             return n_trades * self.min_per_trade
+        if m == "per_name_change":
+            # legacy convention: charge one bps block per name swapped, ignoring drift
+            return n_trades * self.cost_bps / 1e4
         raise ValueError(m)
 
     def describe(self) -> str:

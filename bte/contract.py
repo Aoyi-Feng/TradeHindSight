@@ -18,6 +18,7 @@ class DecisionContext:
     cash: float = 0.0
     nav: float = 0.0
     params: Mapping = field(default_factory=dict)
+    decision_dates: tuple = ()          # past decision marks, oldest first, ending at as_of
 
     @property
     def universe(self):

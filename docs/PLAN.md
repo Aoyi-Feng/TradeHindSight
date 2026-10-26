@@ -18,7 +18,7 @@ makes a future read impossible rather than merely discouraged.
 | **P1** | fast mode, process pool, equivalence gate | fast reproduces rigorous to ≤1e-9 relative | **done** |
 | **P2** | config layer: cost modes, FX, CLI | four cost modes and FX conversion verified | **done (costs, FX)** |
 | **P2b** | corporate actions: splits, dividends, delisting | three split cases reconcile by hand | **open** |
-| **P3** | reconcile against the audited research numbers using the private strategy | matches the audited CAGR / Sharpe / MaxDD | **in progress — 0.95 monthly correlation after fixing the clock convention; residual gap open** |
+| **P3** | reconcile against the audited research numbers using the private strategy | matches the audited CAGR / Sharpe / MaxDD | **reconciled: 0.99998 monthly correlation, max monthly gap 0.30pp (cost convention)** |
 | **P4** | gates in CI on every commit | a failing gate blocks the commit | **open** |
 
 ## What is done

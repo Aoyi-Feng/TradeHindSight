@@ -56,14 +56,16 @@ def stats(rets: pd.Series) -> dict:
 
 
 def _decide(strategy: Strategy, store: DataStore, t: pd.Timestamp,
-            shares: Dict[str, float], cash: float) -> tuple[TargetPortfolio, float]:
+            shares: Dict[str, float], cash: float,
+            decision_dates: Sequence[pd.Timestamp] = ()) -> tuple[TargetPortfolio, float]:
     prices = {s: store.close_of(s, t) for s in shares}
     nav = cash + sum(q * prices[s] for s, q in shares.items()
                      if q and np.isfinite(prices[s]))
     view = store.view(t, strict=True)              # any future read raises
     weights = {s: q * prices[s] / nav for s, q in shares.items()
                if q and nav and np.isfinite(prices[s])}
-    ctx = DecisionContext(as_of=t, view=view, holdings=weights, cash=cash, nav=nav)
+    ctx = DecisionContext(as_of=t, view=view, holdings=weights, cash=cash, nav=nav,
+                          decision_dates=tuple(decision_dates))
     target = strategy.decide(ctx)
     if not isinstance(target, TargetPortfolio):
         target = TargetPortfolio(dict(target))
@@ -93,7 +95,7 @@ def run_rigorous(store: DataStore, strategy: Strategy, grid: Sequence[pd.Timesta
                                       for s, q in shares.items() if q and nav}})
             break
 
-        target, nav_pre = _decide(strategy, store, t, shares, cash)
+        target, nav_pre = _decide(strategy, store, t, shares, cash, grid[:k + 1])
 
         # cost fraction from weights (identical convention to the fast loop), then size
         # on the NAV that remains so post-trade weights equal the targets exactly
@@ -152,17 +154,18 @@ def run_rigorous(store: DataStore, strategy: Strategy, grid: Sequence[pd.Timesta
 _CTX: dict = {}
 
 
-def _worker_init(store, strategy, initial_cash):
+def _worker_init(store, strategy, initial_cash, grid=()):
     _CTX["store"] = store
     _CTX["strategy"] = strategy
     _CTX["cash"] = initial_cash
+    _CTX["grid"] = tuple(grid)
 
 
 def _worker_cycles(pairs):
     store, strategy, cash = _CTX["store"], _CTX["strategy"], _CTX["cash"]
     out = []
     for t, t_next in pairs:
-        target, _ = _decide(strategy, store, t, {}, cash)
+        target, _ = _decide(strategy, store, t, {}, cash, _CTX.get("grid", ()))
         gross = {}
         for s, w in target.items():
             p0, p1 = store.close_of(s, t), store.close_of(s, t_next)
@@ -196,10 +199,10 @@ def run_fast(store: DataStore, strategy: Strategy, grid: Sequence[pd.Timestamp],
     try:
         ctx = mp.get_context("fork")
         with ctx.Pool(workers, initializer=_worker_init,
-                      initargs=(store, strategy, initial_cash)) as pool:
+                      initargs=(store, strategy, initial_cash, grid)) as pool:
             parts = pool.map(_worker_cycles, chunks)
     except (ValueError, OSError):
-        _worker_init(store, strategy, initial_cash)
+        _worker_init(store, strategy, initial_cash, grid)
         parts = [_worker_cycles(pairs)]
 
     merged = {rec[0]: rec for part in parts for rec in part}
