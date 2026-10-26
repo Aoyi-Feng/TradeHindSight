@@ -44,11 +44,15 @@ class Result:
 
 def stats(rets: pd.Series) -> dict:
     r = pd.Series(rets).dropna()
+    # capital cannot fall below zero: clamp any period worse than -100%, otherwise a
+    # negative growth factor flips sign on the next multiplication and CAGR explodes
+    # into nonsense (a 200bp cost run once printed +6e9% a year).
+    r = r.clip(lower=-0.999999)
     if not len(r):
         return {"n": 0, "cagr": float("nan"), "sharpe": float("nan"), "maxdd": float("nan")}
     years = len(r) / 12.0
-    growth = float((1 + r).prod())
-    cagr = growth ** (1 / years) - 1
+    growth = max(float((1 + r).prod()), 0.0)
+    cagr = growth ** (1 / years) - 1 if growth > 0 else -1.0
     sharpe = float(r.mean() / r.std(ddof=1) * np.sqrt(12)) if r.std(ddof=1) > 0 else float("nan")
     eq = (1 + r).cumprod()
     maxdd = float((eq / eq.cummax() - 1).min())
@@ -211,7 +215,7 @@ def _strict_cycle(store: DataStore, strategy: Strategy, t_prev, t,
     if conf.cost_mode == "legacy_fraction":
         c = (len(set(held) - set(prev_held)) + len(set(prev_held) - set(held))) / max(top, 1)
         c += abs(exp - prev_exp)                   # reference quirk: its own prev_exp
-        c *= conf.cost_bps / 100.0
+        c *= conf.cost_bps / 1e4
         return gross * exp - c, []
     # notional modes: charge on the turnover fraction, applied to the gross growth factor
     names = set(held) | set(prev_held)

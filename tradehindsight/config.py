@@ -130,7 +130,8 @@ class RunConfig:
             #   (names swapped / top) * cost   plus   |exposure change| * cost
             # The engine passes (names swapped) as traded_notional, the exposure delta in
             # cfg.exposure_change, and top as cfg.top.
-            return (traded_notional / max(self.top, 1) + self.exposure_change) * self.cost_bps / 100.0
+            # cost_bps is basis points like every other mode: 10 = 0.10% per unit of turnover
+            return (traded_notional / max(self.top, 1) + self.exposure_change) * self.cost_bps / 1e4
         raise ValueError(m)
 
     def describe(self) -> str:
