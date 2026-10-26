@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pkl
+*.npz
+data/
+out/
+.pytest_cache/
+
+# private strategies: local only, never committed
+strategies/*.py
+!strategies/__init__.py
+!strategies/buyhold.py
+examples/reconcile_*.py
