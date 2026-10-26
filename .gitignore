@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+*.pkl
+*.npz
+out/
+.pytest_cache/
+
+# big data stays out; the tiny sample dataset is committed
+data/*
+!data/sample/
+!data/sample/*.csv
+
+# a strategy file dropped in here is local until you decide to publish it
+strategies/*.py
+!strategies/__init__.py
+!strategies/classic.py
+!strategies/buyhold.py
+
+# run archives
+runs/
