@@ -114,7 +114,8 @@ class DataStore:
 
         arr = np.full((len(self.calendar), len(symbols)), np.nan, dtype=np.float64)
         for j, s in enumerate(symbols):
-            arr[:, j] = close[s].reindex(self.calendar).to_numpy(dtype=np.float64)
+            v = close[s].reindex(self.calendar).ffill()
+            arr[:, j] = v.to_numpy(dtype=np.float64)
         self.close_arr = arr
 
         vol = np.full_like(arr, np.nan)
