@@ -206,7 +206,7 @@ base_currency: CHF
 
 decision:
   frequency: month_end        # month_end | week_end | daily | <int k bars>
-  execute: same_close         # same_close | next_close (fast mode: same_close only)
+  execute: same_close         # same_close | next_close | delay_bars | next_decision
 
 cost:
   mode: bps_per_side          # bps_per_side | bps_per_turnover | flat_per_trade | spread
