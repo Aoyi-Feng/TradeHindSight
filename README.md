@@ -51,9 +51,10 @@ bte/
   fx.py        convert prices into the base currency at load time
   audit.py     the five gates
   cli.py       command line entry point
-strategies/    buyhold.py (the only example kept in the repo)
+strategies/    buyhold.py, classic.py (equal weight, 20/60 crossover, random)
 tests/         test_engine.py — the gates
-examples/      demo.py (trivial), bench.py, scaling.py
+examples/      demo.py, run_sample.py, bench.py, scaling.py
+data/sample/   4 synthetic symbols x 520 days (~40 KB) so a clone runs out of the box
 ```
 
 ---
@@ -94,6 +95,18 @@ print(res.stats(), res.trades[:3])
 
 ---
 
+## Run it on the sample data
+
+```bash
+PYTHONPATH=. python examples/run_sample.py
+```
+
+```
+sample: 4 symbols, 520 days, 24 monthly decisions
+equal_weight CAGR  -4.96%  Sharpe -0.58  MaxDD -12.01%  final 9,061  fast-vs-rigorous 1.0e-15
+ma_cross     CAGR  -4.95%  Sharpe -0.32  MaxDD -19.92%  final 9,073  fast-vs-rigorous 2.0e-16
+```
+
 ## Writing a strategy
 
 ```python
@@ -116,8 +129,9 @@ class EqualWeight(Strategy):
 Returning an over-weight or a negative raises immediately rather than silently changing the
 portfolio downstream.
 
-Strategies are private: they live in `strategies/` on your machine and are excluded from this
-repository by `.gitignore`. The engine ships one trivial example, `BuyHold`.
+Private strategies live in `strategies/` on your machine and are excluded by `.gitignore`;
+what ships here is only textbook material (`BuyHold`, `EqualWeight`, a 20/60 crossover, a
+random picker) — nothing tuned, nothing used in production.
 
 ## Configuration
 
