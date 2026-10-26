@@ -147,8 +147,8 @@ PYTHONPATH=. python examples/run_sample.py
 
 ```
 sample: 4 symbols, 520 days, 24 monthly decisions
-equal_weight CAGR  -4.96%  Sharpe -0.58  MaxDD -12.01%  final 9,061  fast-vs-rigorous 1.0e-15
-ma_cross     CAGR  -4.95%  Sharpe -0.32  MaxDD -19.92%  final 9,073  fast-vs-rigorous 2.0e-16
+equal_weight CAGR  -8.14%  Sharpe -0.72  MaxDD -17.90%  final 8,498  fast-vs-rigorous 0.0e+00
+ma_cross     CAGR  -5.07%  Sharpe -0.76  MaxDD -11.03%  final 9,051  fast-vs-rigorous 0.0e+00
 ```
 
 ## Writing a strategy

@@ -72,10 +72,11 @@ def _decide(strategy: Strategy, store: DataStore, t: pd.Timestamp,
     return target.validate().normalised(), nav
 
 
-def _cfg(cfg, cost_bps) -> RunConfig:
+def _cfg(cfg, cost_bps, initial_cash: float = 1.0) -> RunConfig:
     if cfg is not None:
         return cfg
-    return RunConfig(initial_cash=1.0, cost_mode="bps_per_side", cost_bps=cost_bps)
+    return RunConfig(initial_cash=initial_cash, cost_mode="bps_per_side",
+                     cost_bps=cost_bps)
 
 
 def run_rigorous(store: DataStore, strategy: Strategy, grid: Sequence[pd.Timestamp],
@@ -91,7 +92,7 @@ def run_rigorous(store: DataStore, strategy: Strategy, grid: Sequence[pd.Timesta
     legacy_fraction charges the research engine's formula, the notional models charge a
     proportional cost applied to the growth factor.
     """
-    conf = _cfg(cfg, cost_bps)
+    conf = _cfg(cfg, cost_bps, initial_cash)
     if strict:
         return _run_strict(store, strategy, grid, conf)
     cash, shares = float(initial_cash), {}
@@ -323,7 +324,7 @@ def run_fast(store: DataStore, strategy: Strategy, grid: Sequence[pd.Timestamp],
     """
     if strategy.stateful:
         raise ValueError("fast mode cannot run a stateful strategy — use rigorous")
-    conf = _cfg(cfg, cost_bps)
+    conf = _cfg(cfg, cost_bps, initial_cash)
     grid = [pd.Timestamp(x) for x in grid]
     if not strict:
         return _run_fast_legacy(store, strategy, grid, conf, workers)

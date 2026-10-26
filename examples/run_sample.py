@@ -27,8 +27,8 @@ def main() -> int:
           f"{len(grid)} monthly decisions")
 
     for strat in (EqualWeight(), MACross()):
-        a = run_rigorous(store, strat, grid, initial_cash=10_000, cost_bps=10)
-        b = run_fast(store, strat, grid, initial_cash=10_000, cost_bps=10)
+        a = run_rigorous(store, strat, grid, initial_cash=10_000, cost_bps=10, strict=True)
+        b = run_fast(store, strat, grid, initial_cash=10_000, cost_bps=10, strict=True)
         s = a.stats()
         rel = abs(a.equity.iloc[-1] - b.equity.iloc[-1]) / a.equity.iloc[-1]
         print(f"{strat.name:12s} CAGR {s['cagr']:+6.2f}%  Sharpe {s['sharpe']:5.2f}  "
