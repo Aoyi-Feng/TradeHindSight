@@ -1,0 +1,22 @@
+initial_cash: 6000
+base_currency: CHF
+
+decision:
+  frequency: month_end        # month_end | week_end | daily | <int k bars>
+  execute: same_close         # same_close | next_close
+
+cost:
+  mode: bps_per_side          # bps_per_side | bps_per_turnover | flat_per_trade | spread
+  bps: 10
+  spread_bps: 4
+  min_per_trade: 1.0
+
+fx:
+  base: CHF
+  rates:
+    USD: 0.88
+    EUR: 0.95
+  # series: fx.csv            # optional: date,ccy,rate
+
+mode: rigorous
+workers: 0                    # 0 = min(16, cpu_count)
