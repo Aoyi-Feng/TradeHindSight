@@ -19,3 +19,4 @@ examples/reconcile_*.py
 
 # run archives
 runs/
+scripts/replicate_reference.py
