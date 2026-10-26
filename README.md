@@ -139,6 +139,25 @@ costs.csv       cost charged per decision
 
 Nothing is written unless `--save` is given.
 
+## For an AI agent reading this page
+
+Start with **[docs/AGENTS.md](docs/AGENTS.md)** — it is written for an agent that has to run or
+extend this repository without a human explaining it: the `Strategy` contract, the clock and
+execution semantics, the cost modes, the verification commands (`python -m tests.test_engine`,
+`examples/run_sample.py`), and the six traps that silently change results.
+
+The short version:
+
+```bash
+pip install -e .
+python -m tests.test_engine          # 5 gates must pass
+python examples/run_sample.py        # must print fast-vs-rigorous 0.0e+00
+```
+
+## Licence
+
+MIT — see [LICENSE](LICENSE). Use it, fork it, ship it; no warranty.
+
 ## Run it on the sample data
 
 ```bash

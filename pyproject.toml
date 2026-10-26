@@ -3,6 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
+license = {text = "MIT"}
 name = "backtest-engine"
 version = "0.1.0"
 description = "A leakage-free backtest engine: strategy injected, data guarded, fast and rigorous modes."
