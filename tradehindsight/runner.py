@@ -43,17 +43,31 @@ class Result:
 
 
 def stats(rets: pd.Series) -> dict:
-    r = pd.Series(rets).dropna()
+    src = pd.Series(rets)
+    r = src.dropna()
     # capital cannot fall below zero: clamp any period worse than -100%, otherwise a
     # negative growth factor flips sign on the next multiplication and CAGR explodes
     # into nonsense (a 200bp cost run once printed +6e9% a year).
     r = r.clip(lower=-0.999999)
     if not len(r):
         return {"n": 0, "cagr": float("nan"), "sharpe": float("nan"), "maxdd": float("nan")}
-    years = len(r) / 12.0
+    # periods per year: a monthly series has 12, a weekly one 52. Assuming 12 for weekly
+    # data understates CAGR and Sharpe by the ratio of the periods (a 22.8% weekly run
+    # once printed 4.7%). Snap to the common calendars so monthly results stay bit-equal.
+    ppy = 12.0
+    if isinstance(src.index, pd.DatetimeIndex) and len(src.index) >= 3:
+        gaps = np.diff(src.index.values).astype("timedelta64[s]").astype(float) / 86400.0
+        gaps = gaps[gaps > 0]
+        if len(gaps):
+            ppy = float(np.clip(365.25 / np.median(gaps), 1.0, 366.0))
+            for cand in (12.0, 52.0, 252.0):
+                if abs(ppy - cand) <= cand * 0.25:
+                    ppy = cand
+                    break
+    years = len(r) / ppy
     growth = max(float((1 + r).prod()), 0.0)
     cagr = growth ** (1 / years) - 1 if growth > 0 else -1.0
-    sharpe = float(r.mean() / r.std(ddof=1) * np.sqrt(12)) if r.std(ddof=1) > 0 else float("nan")
+    sharpe = float(r.mean() / r.std(ddof=1) * np.sqrt(ppy)) if r.std(ddof=1) > 0 else float("nan")
     eq = (1 + r).cumprod()
     maxdd = float((eq / eq.cummax() - 1).min())
     return {"n": len(r), "cagr": cagr * 100, "sharpe": sharpe, "maxdd": maxdd * 100}
