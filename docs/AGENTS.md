@@ -58,6 +58,12 @@ class MyStrategy(Strategy):
         return TargetPortfolio({"AAPL": 0.5, "MSFT": 0.3})   # remainder is cash
 ```
 
+The engine reads **only** the returned `TargetPortfolio`. It does not care whether you
+ranked a universe, followed a rule, or returned a fixed list: `{"AAPL": 0.4}`, `{"X": 1.0}`,
+`{}` (all cash) and three equal weights are the same kind of answer to it. Scores, ranks and
+reasoning stay inside the strategy; `explain()` (below) is an optional reporting hook and the
+engine never calls it.
+
 `DecisionContext` gives you:
 
 | field | meaning |

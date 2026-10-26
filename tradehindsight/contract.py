@@ -58,7 +58,13 @@ class TargetPortfolio(dict):
 
 
 class Strategy:
-    """Subclass this. The engine only ever calls ``decide``."""
+    """Subclass this. The engine only ever calls ``decide``.
+
+    The one thing the engine takes from a strategy is the portfolio it wants at a moment.
+    How that portfolio was produced is invisible to it: a ranking, a fixed list, one name,
+    a rule that says "hold what I already hold", or an empty dict meaning all cash are all
+    the same answer. The engine never sees scores, ranks or reasons — it sees weights.
+    """
 
     name = "strategy"
     warmup: int = 0            # bars of history required before the first decision
