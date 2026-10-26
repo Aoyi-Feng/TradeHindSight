@@ -1,8 +1,8 @@
-# Using Hindsight as an agent
+# Using TradeHindSight as an agent
 
 You are reading a repository you may be asked to run, extend, or debug. This document is the
 short path: what the code guarantees, how to drive it, and where the traps are. Read it before
-touching `hindsight/`.
+touching `tradehindsight/`.
 
 ---
 
@@ -46,7 +46,7 @@ Requirements: Python 3.10+, pandas, numpy.
 ## 3. The contract you implement
 
 ```python
-from hindsight.contract import DecisionContext, Strategy, TargetPortfolio
+from tradehindsight.contract import DecisionContext, Strategy, TargetPortfolio
 
 class MyStrategy(Strategy):
     name = "my_strategy"
@@ -84,8 +84,8 @@ Rules the engine enforces for you:
 ## 4. Driving it
 
 ```python
-from hindsight import DataStore, build_grid, run_fast, run_rigorous
-from hindsight.config import RunConfig
+from tradehindsight import DataStore, build_grid, run_fast, run_rigorous
+from tradehindsight.config import RunConfig
 
 store = DataStore({"AAPL": close_series, "MSFT": close_series})   # DatetimeIndex, float
 grid = build_grid(store.calendar, "month_end")                    # or month_start / week_end / daily / int k
@@ -102,7 +102,7 @@ res.trades           # fills (ledger mode only)
 CLI:
 
 ```bash
-python -m hindsight.cli --config config.yaml --strategy path/to/file.py:MyStrategy \
+python -m tradehindsight.cli --config config.yaml --strategy path/to/file.py:MyStrategy \
        --data prices.csv --mode fast --freq month_end --save runs --label "sweep-01"
 ```
 
@@ -153,7 +153,7 @@ because changing it changes every number.
 | scaling | `python examples/scaling.py` | 16 workers ≈ 10× |
 | save/load a run | `--save runs` | `manifest.json` + 4 CSVs |
 
-`hindsight/audit.py` exposes the gates individually: `gate_access`, `gate_truncation`, `gate_poison`,
+`tradehindsight/audit.py` exposes the gates individually: `gate_access`, `gate_truncation`, `gate_poison`,
 `gate_fast_equals_rigorous`, `gate_latency`.
 
 ---
@@ -179,15 +179,15 @@ because changing it changes every number.
 ## 9. File map
 
 ```
-hindsight/data.py       DataStore (dates × symbols matrix), PITView, LookAheadError
-hindsight/clock.py      month_end / month_start / week_end / daily / every-k grids
-hindsight/contract.py   Strategy protocol, DecisionContext, TargetPortfolio
-hindsight/runner.py     strict loop, ledger loop, process-pool fast path, execution schedule
-hindsight/config.py     RunConfig, cost modes
-hindsight/fx.py         currency conversion into the base currency at load time
-hindsight/audit.py      the five gates
-hindsight/archive.py    run directories (manifest + CSVs)
-hindsight/cli.py        command line
+tradehindsight/data.py       DataStore (dates × symbols matrix), PITView, LookAheadError
+tradehindsight/clock.py      month_end / month_start / week_end / daily / every-k grids
+tradehindsight/contract.py   Strategy protocol, DecisionContext, TargetPortfolio
+tradehindsight/runner.py     strict loop, ledger loop, process-pool fast path, execution schedule
+tradehindsight/config.py     RunConfig, cost modes
+tradehindsight/fx.py         currency conversion into the base currency at load time
+tradehindsight/audit.py      the five gates
+tradehindsight/archive.py    run directories (manifest + CSVs)
+tradehindsight/cli.py        command line
 strategies/       textbook examples only (buy & hold, equal weight, 20/60, random)
 ```
 

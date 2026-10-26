@@ -1,4 +1,4 @@
-# Hindsight
+# TradeHindSight
 
 *A backtest engine that is not allowed to see the future.*
 
@@ -43,7 +43,7 @@ believe it. The gates below exist precisely so the two can never disagree.
 ## Layout
 
 ```
-hindsight/
+tradehindsight/
   contract.py  Strategy protocol, TargetPortfolio (long-only, weights <= 1)
   data.py      DataStore (dates x symbols matrix), PITView (the look-ahead guard)
   clock.py     decision grids: month_end / week_end / daily / every_k_bars
@@ -63,7 +63,7 @@ data/sample/   4 synthetic symbols x 520 days (~40 KB) so a clone runs out of th
 ## Quick start
 
 ```bash
-PYTHONPATH=. python -m hindsight.cli \
+PYTHONPATH=. python -m tradehindsight.cli \
     --strategy strategies.buyhold:BuyHold \
     --synthetic 120,2000 --mode fast
 ```
@@ -79,14 +79,14 @@ MaxDD       -19.58%
 With real data (a pickle or CSV of closes, one column per symbol):
 
 ```bash
-PYTHONPATH=. python -m hindsight.cli --config config.yaml \
+PYTHONPATH=. python -m tradehindsight.cli --config config.yaml \
     --strategy strategies.buyhold:BuyHold --data prices.pkl --mode rigorous
 ```
 
 From Python:
 
 ```python
-from hindsight import DataStore, build_grid, run_rigorous
+from tradehindsight import DataStore, build_grid, run_rigorous
 
 store = DataStore(close)                       # {symbol: Series}
 grid = build_grid(store.calendar, "month_end")
@@ -121,7 +121,7 @@ decision:
 ## Saving a run
 
 ```bash
-python -m hindsight.cli --config config.yaml --strategy strategies.classic:MACross \
+python -m tradehindsight.cli --config config.yaml --strategy strategies.classic:MACross \
        --data prices.csv --save runs --label "first try"
 ```
 
@@ -174,7 +174,7 @@ ma_cross     CAGR  -5.07%  Sharpe -0.76  MaxDD -11.03%  final 9,051  fast-vs-rig
 ## Writing a strategy
 
 ```python
-from hindsight.contract import DecisionContext, Strategy, TargetPortfolio
+from tradehindsight.contract import DecisionContext, Strategy, TargetPortfolio
 
 class EqualWeight(Strategy):
     stateful = False          # True -> fast mode refuses to run it

@@ -5,10 +5,10 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from hindsight import DataStore, Strategy, TargetPortfolio, build_grid
-from hindsight.contract import DecisionContext
-from hindsight.data import LookAheadError
-from hindsight import audit, run_fast, run_rigorous
+from tradehindsight import DataStore, Strategy, TargetPortfolio, build_grid
+from tradehindsight.contract import DecisionContext
+from tradehindsight.data import LookAheadError
+from tradehindsight import audit, run_fast, run_rigorous
 
 
 def synthetic(n_days: int = 1200, n_assets: int = 5, seed: int = 0) -> DataStore:

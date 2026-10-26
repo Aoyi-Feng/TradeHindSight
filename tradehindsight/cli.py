@@ -1,7 +1,7 @@
 """Command line entry point.
 
-    python -m hindsight.cli --config config.yaml --strategy strategies.buyhold:BuyHold
-    python -m hindsight.cli --strategy strategies.buyhold:BuyHold --synthetic 200,3000 --mode fast
+    python -m tradehindsight.cli --config config.yaml --strategy strategies.buyhold:BuyHold
+    python -m tradehindsight.cli --strategy strategies.buyhold:BuyHold --synthetic 200,3000 --mode fast
 """
 from __future__ import annotations
 

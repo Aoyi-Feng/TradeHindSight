@@ -7,7 +7,7 @@ import time
 import numpy as np
 import pandas as pd
 
-from hindsight import DataStore, build_grid, run_fast, run_rigorous
+from tradehindsight import DataStore, build_grid, run_fast, run_rigorous
 from examples.demo import Alphabet
 
 
