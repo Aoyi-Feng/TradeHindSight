@@ -95,6 +95,50 @@ print(res.stats(), res.trades[:3])
 
 ---
 
+## When the order actually fills
+
+The model decides at the close of the decision date; when the fill happens is a parameter,
+not a policy hidden in the strategy:
+
+| `execute` | fill happens |
+|---|---|
+| `same_close` | at the decision close (default) |
+| `next_close` | at the next trading day's close |
+| `delay_bars` | after `execute_delay` trading days |
+| `next_decision` | at the following decision mark |
+
+A fill that lands inside a cycle splits it: the old position earns until the fill, the new
+one from the fill onwards. Both modes agree to the last bit under every setting.
+
+```yaml
+decision:
+  frequency: month_end
+  execute: delay_bars
+  delay_bars: 5
+```
+
+## Saving a run
+
+```bash
+python -m bte.cli --config config.yaml --strategy strategies.classic:MACross \
+       --data prices.csv --save runs --label "first try"
+```
+
+Each run lands in `runs/<utc-timestamp>/`:
+
+```
+manifest.json   run id, UTC time, engine git commit, config, strategy + params,
+                stats (CAGR/Sharpe/MaxDD), cycles, final NAV, trade count, total cost,
+                data fingerprint (symbols, days, first/last date, matrix sha256)
+equity.csv      NAV after every decision
+returns.csv     per-cycle return
+weights.csv     post-trade weights at each decision
+trades.csv      every fill: time, symbol, shares, price, notional
+costs.csv       cost charged per decision
+```
+
+Nothing is written unless `--save` is given.
+
 ## Run it on the sample data
 
 ```bash

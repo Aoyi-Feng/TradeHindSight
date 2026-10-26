@@ -16,3 +16,6 @@ strategies/*.py
 !strategies/classic.py
 !strategies/buyhold.py
 examples/reconcile_*.py
+
+# run archives
+runs/

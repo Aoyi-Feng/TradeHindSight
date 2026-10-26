@@ -80,8 +80,20 @@ def _cfg(cfg, cost_bps) -> RunConfig:
 
 def run_rigorous(store: DataStore, strategy: Strategy, grid: Sequence[pd.Timestamp],
                  initial_cash: float = 1.0, cost_bps: float = 0.0,
-                 cfg: Optional[RunConfig] = None) -> Result:
+                 cfg: Optional[RunConfig] = None,
+                 strict: bool = False) -> Result:
+    """strict=True re-emits mode-independent cycles with mode-independent cost.
+
+    Every signal is evaluated at (t-1) on data <= t-1, and executed at the close of t-1;
+    the interval (t-1, t] is then pure price movement. Each cycle therefore produces
+    exactly one return row, with no latency and no shared cash, which is the only way the
+    result can equal a per-cycle chain to the last bit. Costs come from `cfg.cost_mode`:
+    legacy_fraction charges the research engine's formula, the notional models charge a
+    proportional cost applied to the growth factor.
+    """
     conf = _cfg(cfg, cost_bps)
+    if strict:
+        return _run_strict(store, strategy, grid, conf)
     cash, shares = float(initial_cash), {}
     equity, cost_s, trades, wrows = {}, {}, [], []
     grid = [pd.Timestamp(x) for x in grid]
@@ -150,6 +162,129 @@ def run_rigorous(store: DataStore, strategy: Strategy, grid: Sequence[pd.Timesta
                   costs=pd.Series(cost_s).sort_index())
 
 
+def execution_dates(store: DataStore, grid: Sequence[pd.Timestamp],
+                    conf: RunConfig) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+    """(decision date, execution date) for every mark.
+
+    same_close     fill at the decision close
+    next_close     fill at the next trading day's close
+    delay_bars     fill after conf.execute_delay trading days
+    next_decision  the target only becomes effective at the following mark
+    """
+    cal = store.calendar
+    out = []
+    for k, d in enumerate(grid):
+        if conf.execute == "same_close":
+            e = d
+        elif conf.execute == "next_close":
+            pos = min(cal.searchsorted(d, side="right"), len(cal) - 1)
+            e = cal[pos]
+        elif conf.execute == "delay_bars":
+            pos = min(cal.searchsorted(d, side="right") + max(conf.execute_delay - 1, 0),
+                      len(cal) - 1)
+            e = cal[pos]
+        elif conf.execute == "next_decision":
+            e = grid[k + 1] if k + 1 < len(grid) else d
+        else:
+            raise ValueError(f"unknown execute mode {conf.execute!r}")
+        out.append((d, pd.Timestamp(e)))
+    return out
+
+
+def _proportional(conf: RunConfig) -> bool:
+    """True for cost modes that scale with traded notional (fractional, bit-comparable)."""
+    return conf.cost_mode in ("bps_per_side", "bps_per_turnover", "spread")
+
+
+def _strict_cycle(store: DataStore, strategy: Strategy, t_prev, t,
+                  held: Sequence[str], prev_held: Sequence[str],
+                  exp: float, exp_prev: float, conf: RunConfig,
+                  prev_exp: float = 1.0) -> tuple[float, list]:
+    top = conf.top or len(held) or 1
+    gross = 0.0
+    for s in held:
+        p0, p1 = store.close_of(s, t_prev), store.close_of(s, t)
+        if np.isfinite(p0) and np.isfinite(p1) and p0 > 0:
+            gross += p1 / p0 - 1.0
+    gross /= max(top, 1)                       # unfilled slots stay in cash
+    if conf.cost_mode == "legacy_fraction":
+        c = (len(set(held) - set(prev_held)) + len(set(prev_held) - set(held))) / max(top, 1)
+        c += abs(exp - prev_exp)                   # reference quirk: its own prev_exp
+        c *= conf.cost_bps / 100.0
+        return gross * exp - c, []
+    # notional modes: charge on the turnover fraction, applied to the gross growth factor
+    names = set(held) | set(prev_held)
+    swapped = sum(1 for s in names if s not in set(prev_held) or s not in set(held))
+    turnover = swapped / max(top, 1)
+    if abs(exp - exp_prev) > 0:
+        turnover += abs(exp - exp_prev)
+    cost_frac = conf.cost_for(turnover, swapped) if conf.cost_mode != "flat_per_trade" else 0.0
+    return gross * exp - cost_frac, []
+
+
+
+def _active_index(grid, schedule, k):
+    """Which decision is actually in the account at grid[k-1]."""
+    best = None
+    for j in range(0, k):
+        if schedule[grid[j]] <= grid[k - 1]:
+            best = j
+    return best
+
+
+def _cycle_return(store, plan, grid, schedule, k, conf):
+    """Return of cycle k, splitting the window where an order fills inside it.
+
+    plan[j] = (held, exp) decided at grid[j]; schedule maps a decision date to its fill.
+    """
+    t_prev, t = grid[k - 1], grid[k]
+    active = _active_index(grid, schedule, k)
+    new = k - 1
+
+    # no fill inside the window: whatever is in the account earns the whole period
+    fill = schedule[grid[new]]
+    if fill <= t_prev or active == new:
+        held, exp = plan[active] if active is not None else ([], 1.0)
+        return _strict_cycle(store, None, t_prev, t, held, [], exp, 1.0, conf, exp)[0]
+
+    held_old, exp_old = plan[active] if active is not None else ([], 1.0)
+    held_new, exp_new = plan[new]
+    seg1 = _strict_cycle(store, None, t_prev, fill, held_old, [], exp_old, 1.0, conf, exp_old)[0]
+    seg2 = _strict_cycle(store, None, fill, t, held_new, held_old, exp_new, exp_old, conf, exp_new)[0]
+    return (1 + seg1) * (1 + seg2) - 1
+
+
+def _run_strict(store: DataStore, strategy: Strategy, grid: Sequence[pd.Timestamp],
+                conf: RunConfig) -> Result:
+    """One decision per mark, one return per mark, no shared cash between cycles."""
+    grid = [pd.Timestamp(x) for x in grid]
+    if len(grid) < 2:
+        return Result(mode="rigorous", equity=pd.Series(dtype=float))
+    plan = []
+    for k, t in enumerate(grid):
+        view = store.view(t, strict=True)
+        ctx = DecisionContext(as_of=t, view=view, decision_dates=tuple(grid[:k + 1]))
+        target = strategy.decide(ctx).validate().normalised()
+        held = list(target)
+        plan.append((held, float(sum(target.values())) if held else 0.0))
+    return _chain(store, plan, grid, execution_dates(store, grid, conf), conf,
+                  float(conf.initial_cash), mode="rigorous")
+
+
+def _chain(store, plan, grid, sched, conf, cash, mode="rigorous") -> Result:
+    schedule = dict(sched)
+    value = float(cash)
+    equity, rets = {grid[0]: value}, {}
+    for k in range(1, len(grid)):
+        r = _cycle_return(store, plan, grid, schedule, k, conf)
+        rets[grid[k]] = r
+        value *= 1.0 + r
+        equity[grid[k]] = value
+    return Result(mode=mode, equity=pd.Series(equity).sort_index(),
+                  returns=pd.Series(rets).sort_index(),
+                  costs=pd.Series({d: 0.0 for d in rets}).sort_index())
+
+
 # ---------------------------------------------------------------- fast (process pool)
 _CTX: dict = {}
 
@@ -176,52 +311,112 @@ def _worker_cycles(pairs):
 
 def run_fast(store: DataStore, strategy: Strategy, grid: Sequence[pd.Timestamp],
              initial_cash: float = 1.0, cost_bps: float = 0.0,
-             workers: int = 0, cfg: Optional[RunConfig] = None) -> Result:
+             workers: int = 0, cfg: Optional[RunConfig] = None,
+             strict: bool = True) -> Result:
     """Cycle returns are independent -> parallel; the chain is a cheap sequential pass.
+
+    strict=True (default) uses the same per-cycle arithmetic as the strict rigorous loop:
+    each decision depends only on data up to its own date, so the cycles can be evaluated
+    in any order and chained afterwards. The result equals the rigorous loop bit for bit.
 
     Uses fork so the price store is inherited copy-on-write instead of pickled.
     """
     if strategy.stateful:
         raise ValueError("fast mode cannot run a stateful strategy — use rigorous")
     conf = _cfg(cfg, cost_bps)
-
     grid = [pd.Timestamp(x) for x in grid]
-    pairs = list(zip(grid[:-1], grid[1:]))
+    if not strict:
+        return _run_fast_legacy(store, strategy, grid, conf, workers)
+
+    pairs = list(range(len(grid)))
     ncpu = os.cpu_count() or 1
-    if not workers:
-        # auto: 16 — measured optimum on a 32-thread box; beyond that it only adds overhead
-        workers = min(16, ncpu)
-    if workers > ncpu:                           # never oversubscribe the box
-        workers = ncpu
-    workers = max(1, min(workers, len(pairs)))
+    workers = workers or min(16, ncpu)
+    workers = max(1, min(workers, ncpu, len(pairs) or 1))
     chunks = [pairs[i::workers] for i in range(workers)]
 
     try:
         ctx = mp.get_context("fork")
+        with ctx.Pool(workers, initializer=_strict_init, initargs=(store, strategy, grid)) as pool:
+            parts = pool.map(_strict_cycles, chunks)
+    except (ValueError, OSError):
+        _strict_init(store, strategy, grid)
+        parts = [_strict_cycles(pairs)]
+
+    plan_map = {rec[0]: rec[1:] for part in parts for rec in part}
+    plan = [plan_map.get(k, ([], 0.0)) for k in range(len(grid))]
+    return _chain(store, plan, grid, execution_dates(store, grid, conf), conf,
+                  float(initial_cash), mode="fast")
+    value = float(initial_cash)
+    equity = {grid[0]: value}
+    rets = {}
+    for k in range(1, len(grid)):
+        t_prev, t = grid[k - 1], grid[k]
+        # the first window is empty in the strict loop too: nothing was held before the
+        # first decision, so that cycle earns no return and only pays for entering
+        held, exp = plan[k - 1] if k >= 2 else ([], 1.0)
+        prev_held, _ = plan[k - 2] if k >= 3 else ([], 1.0)
+        prev_exp = plan[k - 1][1]
+        r, _ = _strict_cycle(store, strategy, t_prev, t, held, prev_held, exp, 1.0, conf, prev_exp)
+        rets[t] = r
+        value *= 1.0 + r
+        equity[t] = value
+    return Result(mode="fast", equity=pd.Series(equity).sort_index(),
+                  returns=pd.Series(rets).sort_index())
+
+
+_SCTX: dict = {}
+
+
+def _strict_init(store, strategy, grid):
+    _SCTX["store"] = store
+    _SCTX["strategy"] = strategy
+    _SCTX["grid"] = tuple(grid)
+
+
+def _strict_cycles(items):
+    """Evaluate the decision at each mark. Nothing here depends on cash."""
+    store, strategy, grid = _SCTX["store"], _SCTX["strategy"], _SCTX["grid"]
+    out = []
+    for k in items:
+        t = grid[k]
+        view = store.view(t, strict=True)
+        ctx = DecisionContext(as_of=t, view=view, decision_dates=tuple(grid[:k + 1]))
+        target = strategy.decide(ctx).validate().normalised()
+        held = list(target)
+        exp = float(sum(target.values())) if held else 0.0
+        out.append((k, held, exp))
+    return out
+
+
+def _run_fast_legacy(store, strategy, grid, conf, workers):
+    pairs = list(zip(grid[:-1], grid[1:]))
+    ncpu = os.cpu_count() or 1
+    workers = workers or min(16, ncpu)
+    workers = max(1, min(workers, ncpu, len(pairs) or 1))
+    chunks = [pairs[i::workers] for i in range(workers)]
+    try:
+        ctx = mp.get_context("fork")
         with ctx.Pool(workers, initializer=_worker_init,
-                      initargs=(store, strategy, initial_cash, grid)) as pool:
+                      initargs=(store, strategy, conf.initial_cash, grid)) as pool:
             parts = pool.map(_worker_cycles, chunks)
     except (ValueError, OSError):
-        _worker_init(store, strategy, initial_cash, grid)
+        _worker_init(store, strategy, conf.initial_cash, grid)
         parts = [_worker_cycles(pairs)]
 
     merged = {rec[0]: rec for part in parts for rec in part}
     cycles = [merged[t] for t, _ in pairs]
-
-    value, prev, equity = float(initial_cash), {}, {}
+    value, prev, equity = float(conf.initial_cash), {}, {}
     for t, t_next, w, gross in cycles:
         names = set(w) | set(prev)
-        # one-sided traded notional, same convention as the rigorous loop
         deltas = {s: abs(w.get(s, 0.0) - prev.get(s, 0.0)) for s in names}
         turnover = sum(deltas.values())
         n_trades = sum(1 for v in deltas.values() if v > 1e-12)
-        cost = conf.cost_for(turnover * value, n_trades)   # paid at t, before the interval
+        cost = conf.cost_for(turnover * value, n_trades)
         value_at_t = value - cost
         equity[t] = value_at_t
         port = sum(w.get(s, 0.0) * gross[s] for s in w) + (1.0 - sum(w.values()))
         value = value_at_t * port
         equity[t_next] = value
         prev = {s: w.get(s, 0.0) * gross[s] / port for s in w} if port else {}
-
     eq = pd.Series(equity).sort_index()
     return Result(mode="fast", equity=eq, returns=eq.pct_change().dropna())

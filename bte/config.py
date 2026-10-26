@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 
 
 COST_MODES = ("bps_per_side", "bps_per_turnover", "flat_per_trade", "spread",
-              "per_name_change")
+              "per_name_change", "legacy_fraction")
 
 
 @dataclass
@@ -21,13 +21,16 @@ class RunConfig:
 
     # decision / execution
     decision_freq: Any = "month_end"        # month_end | week_end | daily | int k
-    execute: str = "same_close"             # same_close | next_close
+    execute: str = "same_close"             # same_close | next_close | delay_bars | next_decision
+    execute_delay: int = 0                  # trading bars to wait when execute == "delay_bars"
 
     # costs
     cost_mode: str = "bps_per_side"
     cost_bps: float = 10.0
     spread_bps: float = 4.0
     min_per_trade: float = 1.0
+    exposure_change: float = 0.0      # legacy_fraction only: |exposure_t - exposure_t-1|
+    top: int = 3                      # legacy_fraction only: denominator for swaps
 
     # fx: symbol -> currency, currency -> rate into base (constant or "series.csv")
     currency: Dict[str, str] = field(default_factory=dict)
@@ -48,6 +51,7 @@ class RunConfig:
                 if key == "decision":
                     flat["decision_freq"] = val.get("frequency", "month_end")
                     flat["execute"] = val.get("execute", "same_close")
+                    flat["execute_delay"] = int(val.get("delay_bars", 0))
                 elif key == "cost":
                     for a, b in (("mode", "cost_mode"), ("bps", "cost_bps"),
                                  ("spread_bps", "spread_bps"),
@@ -121,6 +125,12 @@ class RunConfig:
         if m == "per_name_change":
             # legacy convention: charge one bps block per name swapped, ignoring drift
             return n_trades * self.cost_bps / 1e4
+        if m == "legacy_fraction":
+            # exactly what the original engine charged, to the bit:
+            #   (names swapped / top) * cost   plus   |exposure change| * cost
+            # The engine passes (names swapped) as traded_notional, the exposure delta in
+            # cfg.exposure_change, and top as cfg.top.
+            return (traded_notional / max(self.top, 1) + self.exposure_change) * self.cost_bps / 100.0
         raise ValueError(m)
 
     def describe(self) -> str:

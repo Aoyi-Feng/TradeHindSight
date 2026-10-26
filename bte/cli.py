@@ -65,6 +65,9 @@ def main(argv=None) -> int:
     ap.add_argument("--min-per-trade", dest="min_per_trade", type=float)
     ap.add_argument("--initial-cash", dest="initial_cash", type=float)
     ap.add_argument("--freq", dest="freq")
+    ap.add_argument("--save", metavar="DIR", nargs="?", const="runs", default=None,
+                    help="write this run (manifest, equity, returns, weights, trades) to DIR")
+    ap.add_argument("--label", default="", help="free-text label stored in the manifest")
     ap.add_argument("--json", action="store_true", help="print the config and results as json")
     args = ap.parse_args(argv)
 
@@ -102,6 +105,11 @@ def main(argv=None) -> int:
         print(f"Sharpe      {s['sharpe']:.3f}")
         print(f"MaxDD       {s['maxdd']:+.2f}%")
         print(f"final NAV   {res.equity.iloc[-1]:,.2f}")
+    if args.save:
+        from .archive import save_run
+        where = save_run(res, cfg, store=store, strategy=strat, out_dir=args.save,
+                         label=args.label)
+        print(f"saved       {where}")
     return 0
 
 

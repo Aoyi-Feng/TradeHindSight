@@ -45,10 +45,12 @@ def gate_poison(store: DataStore, strategy: Strategy, grid: Sequence[pd.Timestam
 def gate_fast_equals_rigorous(store: DataStore, strategy: Strategy,
                               grid: Sequence[pd.Timestamp],
                               cost_bps: float = 0.0, initial_cash: float = 1.0,
-                              workers: int = 16) -> dict:
-    a = run_rigorous(store, strategy, grid, initial_cash=initial_cash, cost_bps=cost_bps)
+                              workers: int = 16, strict: bool = True) -> dict:
+    """fast must equal rigorous bit for bit when both use the same arithmetic."""
+    a = run_rigorous(store, strategy, grid, initial_cash=initial_cash, cost_bps=cost_bps,
+                     strict=strict)
     b = run_fast(store, strategy, grid, initial_cash=initial_cash, cost_bps=cost_bps,
-                 workers=workers)
+                 workers=workers, strict=strict)
     common = a.equity.index.intersection(b.equity.index)
     diff = float(np.max(np.abs(a.equity[common].values - b.equity[common].values))) if len(common) else float("inf")
     scale = float(np.max(np.abs(a.equity[common].values))) if len(common) else 1.0
